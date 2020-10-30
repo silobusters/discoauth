@@ -1,5 +1,5 @@
-Flask==0.12.3
-requests-oauthlib==0.5.0
+Flask
+requests-oauthlib
 python-dotenv
 flask-sqlalchemy
 flask-migrate
