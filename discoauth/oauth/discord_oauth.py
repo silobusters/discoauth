@@ -1,13 +1,15 @@
-from flask import Blueprint, request, session, redirect, url_for
+from flask import Blueprint, request, session, redirect, url_for, current_app
 from requests_oauthlib import OAuth2Session
 from hashlib import sha256
 import os
+
+from ..models import User, UserOAuth, db
 
 DISCORD_OAUTH2_CLIENT_ID = os.getenv('SB_DISCORD_OAUTH2_CLIENT_ID')
 DISCORD_OAUTH2_CLIENT_SECRET = os.getenv('SB_DISCORD_OAUTH2_CLIENT_SECRET')
 DISCORD_OAUTH2_REDIRECT_URI = os.getenv('SB_DISCORD_OAUTH2_REDIRECT_URI')
 
-DISCORD_API_BASE_URL = os.getenv('DISCORD_API_BASE_URL', 'https://discordapp.com/api')
+DISCORD_API_BASE_URL = os.getenv('SB_DISCORD_API_BASE_URL')
 DISCORD_AUTHORIZATION_BASE_URL = DISCORD_API_BASE_URL + '/oauth2/authorize'
 DISCORD_TOKEN_URL = DISCORD_API_BASE_URL + '/oauth2/token'
 
@@ -18,9 +20,6 @@ if 'http://' in DISCORD_OAUTH2_REDIRECT_URI:
 
 def discord_token_updater(token):
     discord_session['oauth2_token'] = token
-
-def discord_guild_token_updater(token):
-    discord_guild_session['oauth2_token'] = token
 
 def make_discord_session(token=None, state=None, scope=None):
     return OAuth2Session(
@@ -38,8 +37,8 @@ def make_discord_session(token=None, state=None, scope=None):
 
 @discord_oauth.route('/discord')
 def authorize_discord():
-    join = request.args.get('guid', default = None, type = str)
-    link = request.args.get('link', default = None, type = str)
+    join = request.args.get('guid', default=None, type=str)
+    link = request.args.get('link', default=None, type=str)            
     if join:
         join = sha256(join.encode('utf-8')).hexdigest()
         join_param = f'_{join}'
@@ -106,11 +105,21 @@ def callback_discord():
         authorization_response=request.url)
     session['oauth2_token'] = token
 #    i have a token now and i should be storing it
+#    I should also be making my checks for guild membership in case i need to elevate discord permissions after this
+#    This also means i need to make a parameter to indicate elevated permission is required -- or enumerate it in the service parameters
     return redirect(url_for('.confirmation', service=sha256('Discord'.encode('utf-8')).hexdigest(), guid=guid, link=link))
 
 @discord_oauth.route('/confirmation')
-def confirmation():
+def confirmation(): # Take link value and compare it to hashes of active integration routes, then redirect to first match
     service = request.args.get('service', default=None, type=str)
     guid = request.args.get('guid', default=None, type=str)
     link = request.args.get('link', default=None, type=str)
+### exploring
+    for rule in current_app.url_map.iter_rules():
+        if "GET" in rule.methods and rule.endpoint != "static":
+            print(url_for(rule.endpoint))
+
+    discord = make_discord_session(token=session.get('oauth2_token'))
+    user  = discord.get(f"{DISCORD_API_BASE_URL}/users/@me").json()
+
     return f"ayyyy lmao your service is {service}, your link is {link} and your guid is {guid}"

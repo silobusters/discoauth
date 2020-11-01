@@ -1,0 +1,17 @@
+[
+    {
+        "service_id": 1,
+        "service_name": "Discord",
+        "service_hash": "053bc65874ad6098e58c41c57b378a2f36b0220e5e0b46722245e6c2f796818c"
+    },
+    {
+        "service_id": 2,
+        "service_name": "GitHub",
+        "service_hash": "f911e414cf6bdfc595532ab166b5ba0f63d73c021452fcdacbda363dda6ad8fb"
+    },
+    {
+        "service_id": 3,
+        "service_name": "StackExchange",
+        "service_hash": "53133281e30c69bbc684b99c84de69dc4f5fafd7c3b4bf2dcb0600c0d22d00d7"
+    }
+]
