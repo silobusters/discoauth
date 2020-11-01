@@ -27,8 +27,17 @@ class SupportedService(db.Model):
 
     service_id = db.Column(db.Integer, primary_key=True)
     service_name = db.Column(db.String)
-    service_api_status = db.Column(db.String) #bikeshedding
+    service_hash = db.Column(db.String)
     authorization_grants = db.relationship('UserOAuth', backref='service', lazy=True)
+    guild_verifications = db.relationship('ServiceVerification', backref='service', lazy=True)
+
+class ServiceVerification(db.Model):
+    __tablename__ = 'service_verification'
+
+    verification_id = db.Column(db.Integer, primary_key=True)
+    service_id = db.Column(db.Integer, db.ForeignKey('supported_service.service_id'))
+    guild_id = db.Column(db.String, db.ForeignKey('affiliated_guild.guild_id'))
+    verified_role_id = db.Column(db.String)
 
 class AffiliatedGuild(db.Model):
     __tablename__ = 'affiliated_guild'
