@@ -38,6 +38,13 @@ def populate_static_tables():
                 service = SupportedService(**entry)
                 db.session.add(service)
             db.session.commit()
+    if not ServiceVerification.query.all():
+        with open('discoauth/service_verifications.json', 'r') as f:
+            data = json.load(f)
+            for entry in data:
+                verification = ServiceVerification(**entry)
+                db.session.add(verification)
+            db.session.commit()
 
 
 migrate = Migrate(app, db)
