@@ -1,10 +1,14 @@
 from flask import Blueprint, request, session, redirect, url_for
-from flask import current_app as app
 from requests_oauthlib import OAuth2Session
 from hashlib import sha256
 import os
+import requests
+import json
 
-from .models import User, UserOAuth, AffiliatedGuild, ServiceVerification, db
+from ..extensions import db
+from ..models import User, UserOAuth, AffiliatedGuild, ServiceVerification, db
+
+discord_oauth = Blueprint('discord_oauth', __name__)
 
 DISCORD_OAUTH2_CLIENT_ID = os.getenv('SB_DISCORD_OAUTH2_CLIENT_ID')
 DISCORD_OAUTH2_CLIENT_SECRET = os.getenv('SB_DISCORD_OAUTH2_CLIENT_SECRET')
@@ -14,7 +18,17 @@ DISCORD_API_BASE_URL = os.getenv('SB_DISCORD_API_BASE_URL')
 DISCORD_AUTHORIZATION_BASE_URL = DISCORD_API_BASE_URL + '/oauth2/authorize'
 DISCORD_TOKEN_URL = DISCORD_API_BASE_URL + '/oauth2/token'
 
-discord_oauth = Blueprint('discord_oauth', __name__)
+DISCORD_BOT_TOKEN = os.getenv('SB_DISCORD_BOT_TOKEN')
+DISCORD_API_BASE_URL = os.getenv('SB_DISCORD_API_BASE_URL')
+
+AFFILIATED_GUILDS = []
+if AffiliatedGuild.query.all():
+    for guild in AffiliatedGuild.query.all():
+        AFFILIATED_GUILDS.append(guild.guild_id)
+
+SERVICE_VERIFICATIONS = False
+if ServiceVerification.query.all():
+    SERVICE_VERIFICATIONS = True
 
 if 'http://' in DISCORD_OAUTH2_REDIRECT_URI:
     os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = 'true'
@@ -35,6 +49,42 @@ def make_discord_session(token=None, state=None, scope=None):
         },
         auto_refresh_url=DISCORD_TOKEN_URL,
         token_updater=discord_token_updater)
+def in_guild(id, guild):
+    headers_payload = {"Authorization":f"Bot {DISCORD_BOT_TOKEN}","User-Agent":"silobusters (http://silobusters.shamacon.us, v0.01)","Content-Type":"application/json"}
+    r = requests.get(f'{DISCORD_API_BASE_URL}/guilds/{guild}/members/{id}', headers=headers_payload)
+    print(f"in_guild request for {id} in {guild} met with response code {r.status_code}")
+    return r.status_code
+
+def join_affiliated_guild(id, guild, token):
+    data_payload = json.dumps({"access_token":token})
+    headers_payload = {"Authorization":f"Bot {DISCORD_BOT_TOKEN}","User-Agent":"silobusters (http://silobusters.shamacon.us, v0.01)","Content-Type":"application/json"}
+    join_url = f'{DISCORD_API_BASE_URL}/guilds/{guild}/members/{id}'
+    r = requests.put(join_url, headers=headers_payload, data=data_payload)
+    print(f"Request to add user {id} to guild {guild} met with response code {r.status_code}")
+    return r.status_code
+
+def assign_github_verified_role(id, github_username, token): #this should cascade to all affiliated guilds with verifications for this service
+    data_payload = json.dumps({"access_token":token})
+    headers_payload = {"Authorization":f"Bot {DISCORD_BOT_TOKEN}","User-Agent":"silobusters (http://silobusters.shamacon.us, v0.01)","Content-Type":"application/json"}
+    response_payload = []
+    if AFFILIATED_GUILDS and SERVICE_VERIFICATIONS:
+        for guild in AFFILIATED_GUILDS:
+            if in_guild(id, guild.guild_id) == 200:
+                for verification in ServiceVerification.query.all():
+                    if verification.guild_id == guild.guild_id and verification.service_id == 2:
+                        assign_url = f'{DISCORD_API_BASE_URL}/guilds/{guild.guild_id}/members/{id}/roles/{verification.verified_role_id}'
+                        r = requests.put(assign_url, headers=headers_payload, data=data_payload)
+                        response_payload.append({"guild": guild.guild_id, "role": verification.verified_role_id, "status": r.status_code})
+                        print(f"Request to add github-verified role to user {id} met with response code {r.status_code}: {r.content}")
+    elif SERVICE_VERIFICATIONS:
+        response_payload = [{"Error": "No affiliated guilds registered."}]
+    else:
+        response_payload.append({"Error": "No service verifications registered."})
+    print(response_payload)
+    return response_payload
+
+
+
 
 @discord_oauth.route('/discord')
 def authorize_discord():
@@ -122,10 +172,12 @@ def confirmation(): # Take link value and compare it to hashes of active integra
 
     discord = make_discord_session(token=session.get('oauth2_token'))
     user  = discord.get(f"{DISCORD_API_BASE_URL}/users/@me").json()
-    known_user = User.filter_by(discord_user_id=user['id'])
-    if known_user:
-        print(session.get('oauth2_token'))
-    else:
-        print(f"New user: {session.get('oauth2_token')}")
+    with app.app_context():
+        known_user = User.filter_by(discord_user_id=user['id'])
+        if known_user:
+            print(session.get('oauth2_token'))
+            print(in_guild(user['id'], "298175239777419284"))
+        else:
+            print(f"New user: {session.get('oauth2_token')}")
 
     return f"ayyyy lmao your service is {service}, your link is {link} and your guid is {guid}"
