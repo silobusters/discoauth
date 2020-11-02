@@ -1,9 +1,10 @@
-from flask import Blueprint, request, session, redirect, url_for, current_app
+from flask import Blueprint, request, session, redirect, url_for
+from flask import current_app as app
 from requests_oauthlib import OAuth2Session
 from hashlib import sha256
 import os
 
-from ..models import User, UserOAuth, db
+from .models import User, UserOAuth, AffiliatedGuild, ServiceVerification, db
 
 DISCORD_OAUTH2_CLIENT_ID = os.getenv('SB_DISCORD_OAUTH2_CLIENT_ID')
 DISCORD_OAUTH2_CLIENT_SECRET = os.getenv('SB_DISCORD_OAUTH2_CLIENT_SECRET')
@@ -121,5 +122,10 @@ def confirmation(): # Take link value and compare it to hashes of active integra
 
     discord = make_discord_session(token=session.get('oauth2_token'))
     user  = discord.get(f"{DISCORD_API_BASE_URL}/users/@me").json()
+    known_user = User.filter_by(discord_user_id=user['id'])
+    if known_user:
+        print(session.get('oauth2_token'))
+    else:
+        print(f"New user: {session.get('oauth2_token')}")
 
     return f"ayyyy lmao your service is {service}, your link is {link} and your guid is {guid}"

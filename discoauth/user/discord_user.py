@@ -1,8 +1,11 @@
+from flask import Blueprint
+from flask import current_app as app
 import requests
 import os
 import json
 
-from ..models import AffiliatedGuild, ServiceVerification
+from ..models import db, AffiliatedGuild, ServiceVerification
+
 
 DISCORD_BOT_TOKEN = os.getenv('SB_DISCORD_BOT_TOKEN')
 DISCORD_API_BASE_URL = os.getenv('SB_DISCORD_API_BASE_URL')
@@ -15,6 +18,9 @@ if AffiliatedGuild.query.all():
 SERVICE_VERIFICATIONS = False
 if ServiceVerification.query.all():
     SERVICE_VERIFICATIONS = True
+
+discord_user = Blueprint('discord_user', __name__)
+
 
 def in_guild(id, guild):
     headers_payload = {"Authorization":f"Bot {DISCORD_BOT_TOKEN}","User-Agent":"silobusters (http://silobusters.shamacon.us, v0.01)","Content-Type":"application/json"}
@@ -47,5 +53,6 @@ def assign_github_verified_role(id, github_username, token): #this should cascad
         response_payload = [{"Error": "No affiliated guilds registered."}]
     else:
         response_payload.append({"Error": "No service verifications registered."})
+    print(response_payload)
     return response_payload
 
