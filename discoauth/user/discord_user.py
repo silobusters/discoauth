@@ -1,10 +1,9 @@
-from flask import Blueprint
-from flask import current_app as app
 import requests
 import os
 import json
 
-from ..models import db, AffiliatedGuild, ServiceVerification
+from ..extensions import db
+from ..models import AffiliatedGuild, ServiceVerification
 
 
 DISCORD_BOT_TOKEN = os.getenv('SB_DISCORD_BOT_TOKEN')
@@ -19,7 +18,6 @@ SERVICE_VERIFICATIONS = False
 if ServiceVerification.query.all():
     SERVICE_VERIFICATIONS = True
 
-discord_user = Blueprint('discord_user', __name__)
 
 
 def in_guild(id, guild):
