@@ -6,7 +6,7 @@ import requests
 import json
 
 from ..extensions import db
-from ..models import User, UserOAuth, AffiliatedGuild, ServiceVerification, db
+from ..models import User, UserOAuth, AffiliatedGuild, ServiceVerification 
 
 discord_oauth = Blueprint('discord_oauth', __name__)
 
