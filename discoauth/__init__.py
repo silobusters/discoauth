@@ -1,47 +1,32 @@
 import os
 from flask import Flask
-from dotenv import load_dotenv
+from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from dotenv import load_dotenv
 import json
 
 load_dotenv()
 
-from .extensions import db
-from .models import AffiliatedGuild, SupportedService
-from .oauth import discord_oauth
+
+db = SQLAlchemy()
+migrate = Migrate()
 
 
-app = Flask('discoauth', instance_relative_config=True)
-app.config.from_object('config')
-app.config.from_pyfile('config.py')
-app.secret_key = bytes(os.getenv('SB_FLASK_SECRET_KEY'), 'utf-8').decode('unicode_escape')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SB_DATABASE_URL']
-app.register_blueprint(discord_oauth, url_prefix='/auth')
-db.init_app(app)
+def create_app():
+    app = Flask('discoauth', instance_relative_config=True)
+    app.config.from_object('config')
+    app.config.from_pyfile('config.py')
+    app.secret_key = bytes(os.getenv('SB_FLASK_SECRET_KEY'), 'utf-8').decode('unicode_escape')
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SB_DATABASE_URL']
 
-migrate = Migrate(app, db)
+    db.init_app(app)
+    migrate = Migrate(app, db)
 
-@app.before_first_request
-def populate_static_tables():
-    if not AffiliatedGuild.query.all():
-        with open('discoauth/affiliated_guilds.json', 'r') as f:
-            data = json.load(f)
-            for entry in data:
-                guild = AffiliatedGuild(**entry)
-                db.session.add(guild)
-            db.session.commit()
-    if not SupportedService.query.all():
-        with open('discoauth/supported_services.json', 'r') as f:
-            data = json.load(f)
-            for entry in data:
-                service = SupportedService(**entry)
-                db.session.add(service)
-            db.session.commit()
-    if not ServiceVerification.query.all():
-        with open('discoauth/service_verifications.json', 'r') as f:
-            data = json.load(f)
-            for entry in data:
-                verification = ServiceVerification(**entry)
-                db.session.add(verification)
-            db.session.commit()
+    from discoauth.oauth.discord_oauth import bp_discord_oauth
+    app.register_blueprint(bp_discord_oauth, url_prefix='/auth')
+
+    return app
+
+from discoauth import models
+

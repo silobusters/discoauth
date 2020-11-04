@@ -1,4 +1,4 @@
-from .extensions import db
+from discoauth import db
 from datetime import datetime as dt
 
 class User(db.Model):
