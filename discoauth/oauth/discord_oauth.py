@@ -5,10 +5,43 @@ import os
 import requests
 import json
 
-from ..extensions import db
-from ..models import User, UserOAuth, AffiliatedGuild, ServiceVerification 
+from discoauth import create_app, db
+from discoauth.models import User, UserOAuth, AffiliatedGuild, ServiceVerification 
 
-discord_oauth = Blueprint('discord_oauth', __name__)
+bp_discord_oauth = Blueprint('bp_discord_oauth', __name__)
+
+app = create_app()
+app.app_context().push()
+
+#db.create_all()
+
+
+@app.before_first_request
+def populate_static_tables():
+    if len(db.session().query(TableModel).all()) == 0:
+        print("DB is empty!")
+    if not AffiliatedGuild.query.all():
+        with open('discoauth/affiliated_guilds.json', 'r') as f:
+            data = json.load(f)
+            for entry in data:
+                guild = AffiliatedGuild(**entry)
+                db.session.add(guild)
+            db.session.commit()
+    if not SupportedService.query.all():
+        with open('discoauth/supported_services.json', 'r') as f:
+            data = json.load(f)
+            for entry in data:
+                service = SupportedService(**entry)
+                db.session.add(service)
+            db.session.commit()
+    if not ServiceVerification.query.all():
+        with open('discoauth/service_verifications.json', 'r') as f:
+            data = json.load(f)
+            for entry in data:
+                verification = ServiceVerification(**entry)
+                db.session.add(verification)
+            db.session.commit()
+
 
 DISCORD_OAUTH2_CLIENT_ID = os.getenv('SB_DISCORD_OAUTH2_CLIENT_ID')
 DISCORD_OAUTH2_CLIENT_SECRET = os.getenv('SB_DISCORD_OAUTH2_CLIENT_SECRET')
@@ -86,7 +119,7 @@ def assign_github_verified_role(id, github_username, token): #this should cascad
 
 
 
-@discord_oauth.route('/discord')
+@bp_discord_oauth.route('/discord')
 def authorize_discord():
     join = request.args.get('guid', default=None, type=str)
     link = request.args.get('link', default=None, type=str)            
@@ -130,7 +163,7 @@ def authorize_discord():
     print(f"state is {state}, session is {session['oauth2_state']}")
     return redirect(authorization_url)
 
-@discord_oauth.route('/callback_discord')
+@bp_discord_oauth.route('/callback_discord')
 def callback_discord():
     rstate = request.args.get('state', default = None, type = str)
 #this "link" value is to support hooking to additional third party services after authentication
@@ -160,20 +193,20 @@ def callback_discord():
 #    This also means i need to make a parameter to indicate elevated permission is required -- or enumerate it in the service parameters
     return redirect(url_for('.confirmation', service=sha256('Discord'.encode('utf-8')).hexdigest(), guid=guid, link=link))
 
-@discord_oauth.route('/confirmation')
+@bp_discord_oauth.route('/confirmation')
 def confirmation(): # Take link value and compare it to hashes of active integration routes, then redirect to first match
     service = request.args.get('service', default=None, type=str)
     guid = request.args.get('guid', default=None, type=str)
     link = request.args.get('link', default=None, type=str)
 ### exploring
-    for rule in current_app.url_map.iter_rules():
-        if "GET" in rule.methods and rule.endpoint != "static":
-            print(url_for(rule.endpoint))
+#    for rule in app.url_map.iter_rules():
+#        if "GET" in rule.methods and rule.endpoint != "static":
+#            print(url_for(rule.endpoint))
 
     discord = make_discord_session(token=session.get('oauth2_token'))
     user  = discord.get(f"{DISCORD_API_BASE_URL}/users/@me").json()
     with app.app_context():
-        known_user = User.filter_by(discord_user_id=user['id'])
+        known_user = User.query.filter_by(discord_user_id=user['id'])
         if known_user:
             print(session.get('oauth2_token'))
             print(in_guild(user['id'], "298175239777419284"))
