@@ -6,7 +6,7 @@ import requests
 import json
 
 from discoauth import create_app, db
-from discoauth.models import User, UserOAuth, AffiliatedGuild, ServiceVerification 
+from discoauth.models import User, UserOAuth, AffiliatedGuild, ServiceVerification, SupportedService 
 
 bp_discord_oauth = Blueprint('bp_discord_oauth', __name__)
 
@@ -14,34 +14,6 @@ app = create_app()
 app.app_context().push()
 
 #db.create_all()
-
-
-@app.before_first_request
-def populate_static_tables():
-    if len(db.session().query(TableModel).all()) == 0:
-        print("DB is empty!")
-    if not AffiliatedGuild.query.all():
-        with open('discoauth/affiliated_guilds.json', 'r') as f:
-            data = json.load(f)
-            for entry in data:
-                guild = AffiliatedGuild(**entry)
-                db.session.add(guild)
-            db.session.commit()
-    if not SupportedService.query.all():
-        with open('discoauth/supported_services.json', 'r') as f:
-            data = json.load(f)
-            for entry in data:
-                service = SupportedService(**entry)
-                db.session.add(service)
-            db.session.commit()
-    if not ServiceVerification.query.all():
-        with open('discoauth/service_verifications.json', 'r') as f:
-            data = json.load(f)
-            for entry in data:
-                verification = ServiceVerification(**entry)
-                db.session.add(verification)
-            db.session.commit()
-
 
 DISCORD_OAUTH2_CLIENT_ID = os.getenv('SB_DISCORD_OAUTH2_CLIENT_ID')
 DISCORD_OAUTH2_CLIENT_SECRET = os.getenv('SB_DISCORD_OAUTH2_CLIENT_SECRET')
@@ -54,14 +26,16 @@ DISCORD_TOKEN_URL = DISCORD_API_BASE_URL + '/oauth2/token'
 DISCORD_BOT_TOKEN = os.getenv('SB_DISCORD_BOT_TOKEN')
 DISCORD_API_BASE_URL = os.getenv('SB_DISCORD_API_BASE_URL')
 
-AFFILIATED_GUILDS = []
-if AffiliatedGuild.query.all():
-    for guild in AffiliatedGuild.query.all():
-        AFFILIATED_GUILDS.append(guild.guild_id)
+
+
+AFFILIATED_GUILDS = False
+# if AffiliatedGuild.query.all():
+#     for guild in AffiliatedGuild.query.all():
+#         AFFILIATED_GUILDS.append(guild.guild_id)
 
 SERVICE_VERIFICATIONS = False
-if ServiceVerification.query.all():
-    SERVICE_VERIFICATIONS = True
+# if ServiceVerification.query.all():
+#     SERVICE_VERIFICATIONS = True
 
 if 'http://' in DISCORD_OAUTH2_REDIRECT_URI:
     os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = 'true'
@@ -82,11 +56,32 @@ def make_discord_session(token=None, state=None, scope=None):
         },
         auto_refresh_url=DISCORD_TOKEN_URL,
         token_updater=discord_token_updater)
+
 def in_guild(id, guild):
     headers_payload = {"Authorization":f"Bot {DISCORD_BOT_TOKEN}","User-Agent":"silobusters (http://silobusters.shamacon.us, v0.01)","Content-Type":"application/json"}
     r = requests.get(f'{DISCORD_API_BASE_URL}/guilds/{guild}/members/{id}', headers=headers_payload)
     print(f"in_guild request for {id} in {guild} met with response code {r.status_code}")
     return r.status_code
+
+def get_affiliated_guilds(): # Don't worry about pagination yet
+    headers_payload = {"Authorization":f"Bot {DISCORD_BOT_TOKEN}","User-Agent":"silobusters (http://silobusters.shamacon.us, v0.01)","Content-Type":"application/json"}
+    r = requests.get(f'{DISCORD_API_BASE_URL}/users/@me/guilds')
+    print('Retrieving guild affiliations...')
+    if r.status_code == 200:
+        guilds_object = json.loads(r.text)
+        if len(guilds_object):
+            for guild in guilds_object:
+                entry = {}
+                entry['guild_id'] = guild['id']
+                entry['guild_hash'] = sha256(guild['id'].encode('utf-8')).hexdigest()
+                guild_entry = AffiliatedGuild(**entry)
+                db.session.add(guild_entry)
+            db.session.commit()
+            return r.status_code
+        else:
+            return "Error: guild list is empty" # TODO add logging and error reporting
+    else:
+        return r.status_code
 
 def join_affiliated_guild(id, guild, token):
     data_payload = json.dumps({"access_token":token})
@@ -96,6 +91,7 @@ def join_affiliated_guild(id, guild, token):
     print(f"Request to add user {id} to guild {guild} met with response code {r.status_code}")
     return r.status_code
 
+# THIS DOES NOT BELONG HERE
 def assign_github_verified_role(id, github_username, token): #this should cascade to all affiliated guilds with verifications for this service
     data_payload = json.dumps({"access_token":token})
     headers_payload = {"Authorization":f"Bot {DISCORD_BOT_TOKEN}","User-Agent":"silobusters (http://silobusters.shamacon.us, v0.01)","Content-Type":"application/json"}
@@ -116,14 +112,14 @@ def assign_github_verified_role(id, github_username, token): #this should cascad
     print(response_payload)
     return response_payload
 
-
-
-
 @bp_discord_oauth.route('/discord')
 def authorize_discord():
     join = request.args.get('guid', default=None, type=str)
     link = request.args.get('link', default=None, type=str)            
     if join:
+        target_guild = AffiliatedGuild.query.filter_by(guild_id=join).first()
+        if not target_guild:
+            return "404" # TODO choose a more appropriate response for an invalid guild id
         join = sha256(join.encode('utf-8')).hexdigest()
         join_param = f'_{join}'
         scope = request.args.get(
@@ -198,10 +194,10 @@ def confirmation(): # Take link value and compare it to hashes of active integra
     service = request.args.get('service', default=None, type=str)
     guid = request.args.get('guid', default=None, type=str)
     link = request.args.get('link', default=None, type=str)
-### exploring
-#    for rule in app.url_map.iter_rules():
-#        if "GET" in rule.methods and rule.endpoint != "static":
-#            print(url_for(rule.endpoint))
+## exploring
+    for rule in app.url_map.iter_rules():
+        if "GET" in rule.methods and rule.endpoint != "static":
+            print(url_for(rule.endpoint))
 
     discord = make_discord_session(token=session.get('oauth2_token'))
     user  = discord.get(f"{DISCORD_API_BASE_URL}/users/@me").json()
