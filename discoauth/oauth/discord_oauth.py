@@ -195,18 +195,22 @@ def confirmation(): # Take link value and compare it to hashes of active integra
     guid = request.args.get('guid', default=None, type=str)
     link = request.args.get('link', default=None, type=str)
 ## exploring
+    print("showing routes")
     for rule in app.url_map.iter_rules():
         if "GET" in rule.methods and rule.endpoint != "static":
             print(url_for(rule.endpoint))
 
     discord = make_discord_session(token=session.get('oauth2_token'))
     user  = discord.get(f"{DISCORD_API_BASE_URL}/users/@me").json()
-    with app.app_context():
-        known_user = User.query.filter_by(discord_user_id=user['id'])
-        if known_user:
-            print(session.get('oauth2_token'))
-            print(in_guild(user['id'], "298175239777419284"))
-        else:
-            print(f"New user: {session.get('oauth2_token')}")
+    new_token = session.get('oauth2_token')
+    new_user_entry = User(discord_user_id=user['id'])
+    new_user_oauth_entry = UserOAuth(discord_user_id=user['id'], service_id=1, service_user_id=user['id'], token=new_token['access_token'], scope=', '.join(new_token['scope']))
+    known_user = User.query.filter_by(discord_user_id=user['id']).first()
+    if not known_user:
+        print(f"New user: {user['id']} - {user['username']}")
+        db.session.add(new_user_entry)
+        db.session.add(new_user_oauth_entry)
+        db.session.commit()
+        db.session.close()
 
     return f"ayyyy lmao your service is {service}, your link is {link} and your guid is {guid}"
