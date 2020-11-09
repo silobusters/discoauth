@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: cfa5128a5dbb
+Revision ID: 50e91791d05c
 Revises: 
-Create Date: 2020-11-09 09:02:02.342372
+Create Date: 2020-11-09 09:47:26.439594
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'cfa5128a5dbb'
+revision = '50e91791d05c'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -26,12 +26,9 @@ def upgrade():
     )
     op.create_table('user',
     sa.Column('discord_user_id', sa.String(), nullable=False),
-    sa.Column('github_user_id', sa.String(), nullable=True),
-    sa.Column('github_verified', sa.Boolean(), nullable=True),
     sa.Column('github_event_announce', sa.Boolean(), nullable=True),
     sa.Column('github_entity_reaction', sa.Boolean(), nullable=True),
-    sa.Column('github_gist_append', sa.String(), nullable=True),
-    sa.Column('stackexchange_user_id', sa.String(), nullable=True),
+    sa.Column('github_gist_append_url', sa.String(), nullable=True),
     sa.Column('stackexchange_assistant_opt_in', sa.Boolean(), nullable=True),
     sa.Column('stackexchange_assistant_topics', sa.String(), nullable=True),
     sa.Column('stackexchange_publisher_opt_in', sa.Boolean(), nullable=True),
@@ -53,13 +50,14 @@ def upgrade():
     op.create_table('user_oauth',
     sa.Column('discord_user_id', sa.String(), nullable=False),
     sa.Column('service_id', sa.Integer(), nullable=False),
+    sa.Column('service_user_id', sa.String(), nullable=True),
     sa.Column('authorized', sa.Boolean(), nullable=True),
     sa.Column('token', sa.String(), nullable=True),
     sa.Column('sb_verification_token', sa.String(), nullable=True),
     sa.Column('scope', sa.String(), nullable=True),
     sa.Column('first_grant_date', sa.DateTime(), nullable=True),
     sa.Column('token_expiry_date', sa.DateTime(), nullable=True),
-    sa.Column('last_grant_date', sa.DateTime(), nullable=True),
+    sa.Column('last_revision_date', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['discord_user_id'], ['user.discord_user_id'], ),
     sa.ForeignKeyConstraint(['service_id'], ['supported_service.service_id'], ),
     sa.PrimaryKeyConstraint('discord_user_id', 'service_id')
