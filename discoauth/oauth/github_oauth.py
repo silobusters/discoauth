@@ -66,30 +66,34 @@ def assign_github_verified_role(id, token): #this should cascade to all affiliat
     headers_payload = {"Authorization":f"Bot {DISCORD_BOT_TOKEN}","User-Agent":"silobusters (http://silobusters.shamacon.us, v0.01)","Content-Type":"application/json"}
     response_payload = []
     try:
-        AFFILIATED_GUILDS = False
+        AFFILIATED_GUILDS = []
         if AffiliatedGuild.query.all():
             for guild in AffiliatedGuild.query.all():
+                print(f'guild is {guild.guild_id}')
                 AFFILIATED_GUILDS.append(guild.guild_id)
+        else:
+            AFFILIATED_GUILDS = False
+            print(f'No guilds found.')
+            response_payload = [{"Error": "No affiliated guilds registered."}]
 
         SERVICE_VERIFICATIONS = False
         if ServiceVerification.query.all():
             SERVICE_VERIFICATIONS = True
-    except:
-        print("DATABASE IS MISSING INITIAL DATA.")
+        else:
+            response_payload.append({"Error": "No service verifications registered."})
+
+    except Error as e:
+        print("DATABASE IS MISSING INITIAL DATA.", e)
 
     if AFFILIATED_GUILDS and SERVICE_VERIFICATIONS:
         for guild in AFFILIATED_GUILDS:
-            if in_guild(id, guild.guild_id):
+            if in_guild(id, guild):
                 for verification in ServiceVerification.query.all():
-                    if verification.guild_id == guild.guild_id and verification.service_id == 2:
-                        assign_url = f'{DISCORD_API_BASE_URL}/guilds/{guild.guild_id}/members/{id}/roles/{verification.verified_role_id}'
+                    if verification.guild_id == guild and verification.service_id == 2:
+                        assign_url = f'{DISCORD_API_BASE_URL}/guilds/{guild}/members/{id}/roles/{verification.verified_role_id}'
                         r = requests.put(assign_url, headers=headers_payload, data=data_payload)
-                        response_payload.append({"guild": guild.guild_id, "role": verification.verified_role_id, "status": r.status_code})
+                        response_payload.append({"guild": guild, "role": verification.verified_role_id, "status": r.status_code})
                         print(f"Request to add github-verified role to user {id} met with response code {r.status_code}: {r.content}")
-    elif SERVICE_VERIFICATIONS:
-        response_payload = [{"Error": "No affiliated guilds registered."}]
-    else:
-        response_payload.append({"Error": "No service verifications registered."})
     print(response_payload)
     return response_payload
 
@@ -127,11 +131,13 @@ def callback_github():
         GITHUB_TOKEN_URL,
         client_secret=GITHUB_OAUTH2_CLIENT_SECRET,
         authorization_response=request.url)
+    print(f"Callback: GitHub Token is: {token}")
     session['oauth2_token'] = token
-    sb_token_hash = session.get('oauth2_state')
+    sb_token_hash = request.args.get('state')
+    print(sb_token_hash)
     github.headers['Accept'] = 'application/vnd.github.baptiste-preview'
     user = github.get(GITHUB_API_BASE_URL+'/user').json()
-    print(f"user:{user['login']} ({user['id']}")
+    print(f"user:{user['login']} ({user['id']})")
     github_username = user['login']
     github_id = user['id']
     try:
@@ -143,15 +149,13 @@ def callback_github():
     gh_auth = UserOAuth.query.filter_by(discord_user_id=gh_user.discord_user_id, service_id=2).first()
     if gh_auth:
         gh_auth.access_token = gh_token['access_token']
-        gh_auth.refresh_token = gh_token['refresh_token']
-        gh_auth.token_expiry_date = dt.fromtimestamp(gh_token['expires_at'])
     else:
-        new_auth_entry = UserOAuth(discord_user_id=gh_user_duid, service_id=2, service_user_id=user['id'], access_token=gh_token['access_token'], refresh_token=gh_token['refresh_token'], scope=', '.join(gh_token['scope']))
+        new_auth_entry = UserOAuth(discord_user_id=gh_user_duid, service_id=2, service_user_id=user['id'], access_token=gh_token['access_token'], scope=', '.join(gh_token['scope']))
         db.session.add(new_auth_entry)
     db.session.commit()
     db.session.close()
     assign_github_verified_role(gh_user_duid, gh_token['access_token'])
-    return redirect(url_for(discoauth.auth.discord_oauth.confirmation), service=sha256('GitHub'.encode('utf-8')).hexdigest())
+    return redirect(url_for('bp_discord_oauth.confirmation', service=sha256('GitHub'.encode('utf-8')).hexdigest()))
 
 
 
