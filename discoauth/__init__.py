@@ -29,6 +29,8 @@ def create_app():
 
     from discoauth.oauth.discord_oauth import bp_discord_oauth
     app.register_blueprint(bp_discord_oauth, url_prefix='/auth')
+    from discoauth.oauth.github_oauth import bp_github_oauth
+    app.register_blueprint(bp_github_oauth, url_prefix='/auth')
 
     return app
 
@@ -86,5 +88,5 @@ def populate_static_tables():
                 db.session.add(verification)
             db.session.commit()
             SERVICE_VERIFICATIONS = True
-    
+
 #app.before_request(populate_static_tables) 
