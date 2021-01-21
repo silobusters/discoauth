@@ -29,12 +29,12 @@ DISCORD_API_BASE_URL = os.getenv('SB_DISCORD_API_BASE_URL')
 
 
 
-AFFILIATED_GUILDS = False
+#AFFILIATED_GUILDS = False
 # if AffiliatedGuild.query.all():
 #     for guild in AffiliatedGuild.query.all():
 #         AFFILIATED_GUILDS.append(guild.guild_id)
 
-SERVICE_VERIFICATIONS = False
+#SERVICE_VERIFICATIONS = False
 # if ServiceVerification.query.all():
 #     SERVICE_VERIFICATIONS = True
 
@@ -58,6 +58,7 @@ def make_discord_session(token=None, state=None, scope=None):
         auto_refresh_url=DISCORD_TOKEN_URL,
         token_updater=discord_token_updater)
 
+# TODO abstract User-Agent value
 def in_guild(id, guild=None):
     if guild:
         headers_payload = {"Authorization":f"Bot {DISCORD_BOT_TOKEN}","User-Agent":"silobusters (http://silobusters.shamacon.us, v0.01)","Content-Type":"application/json"}

@@ -82,8 +82,8 @@ def assign_github_verified_role(id, token): #this should cascade to all affiliat
         else:
             response_payload.append({"Error": "No service verifications registered."})
 
-    except Error as e:
-        print("DATABASE IS MISSING INITIAL DATA.", e)
+    except:
+        print("DATABASE IS MISSING INITIAL DATA.")
 
     if AFFILIATED_GUILDS and SERVICE_VERIFICATIONS:
         for guild in AFFILIATED_GUILDS:
@@ -156,49 +156,3 @@ def callback_github():
     db.session.close()
     assign_github_verified_role(gh_user_duid, gh_token['access_token'])
     return redirect(url_for('bp_discord_oauth.confirmation', service=sha256('GitHub'.encode('utf-8')).hexdigest()))
-
-
-
-    
-#     if join:
-#         target_guild = AffiliatedGuild.query.filter_by(guild_id=join).first()
-#         if not target_guild:
-#             return "404" # TODO choose a more appropriate response for an invalid guild id
-#         join = sha256(join.encode('utf-8')).hexdigest()
-#         join_param = f'_{join}'
-#         scope = request.args.get(
-#             'scope',
-#             'identify connections guilds.join'
-#         )
-#         discord = make_discord_session(scope=scope.split(' '))
-#         authorization_url, state = discord.authorization_url(DISCORD_AUTHORIZATION_BASE_URL)
-# #This is ugly, but I'm using it to avoid registering additional callback URIs with discord
-# #Maybe I should be using new_state()
-# #I definitely shouldn't be repeating this ugly pattern like I am
-#         state_param = state
-    #     if link:
-    #         link = sha256(link.encode('utf-8')).hexdigest()
-    #         link_param = f'-{link}'
-    #         discord = make_discord_session(scope=scope.split(' '), state=f'{state_param}_{join}-{link}')
-    #     else:
-    #         discord = make_discord_session(scope=scope.split(' '), state=f'{state_param}_{join}')
-    #     authorization_url, state = discord.authorization_url(DISCORD_AUTHORIZATION_BASE_URL)
-    # else:
-    #     scope = request.args.get(
-    #         'scope',
-    #         'identify connections'
-    #     )
-    #     discord = make_discord_session(scope=scope.split(' '))
-    #     authorization_url, state = discord.authorization_url(DISCORD_AUTHORIZATION_BASE_URL)
-    #     state_param = state
-    #     if link:
-    #         link = sha256(link.encode('utf-8')).hexdigest()
-    #         link_param = f'-{link}'
-    #         discord = make_discord_session(scope=scope.split(' '), state=f'{state_param}-{link}')
-    #     else:
-    #         discord = make_discord_session(scope=scope.split(' '), state=f'{state_param}')
-    #     authorization_url, state = discord.authorization_url(DISCORD_AUTHORIZATION_BASE_URL)
-    # print(f'state is {state}')
-    # session['oauth2_state'] = state
-    # print(f"state is {state}, session is {session['oauth2_state']}")
-    # return redirect(authorization_url)
