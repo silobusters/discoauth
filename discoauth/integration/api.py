@@ -35,7 +35,7 @@ def get_user(snowflake):
 #        result = {"discordSnowflake":snowflake, "githubUserId":known_user.service_user_id}
         known_user = User.query.filter_by(discord_user_id=str(snowflake)).first()
         result = {}
-        result["discordSnowflake"] = snowflake
+#        result["discordSnowflake"] = snowflake
         for i in known_user_oauth:
             result[f"{SupportedService.query.filter_by(service_id=i.service_id).first().service_name.lower()}UserId"] = i.service_user_id
         result["userStatus"] = known_user.sb_status_id
