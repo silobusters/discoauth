@@ -1,4 +1,4 @@
-from flask import Blueprint, request, session, redirect, url_for
+from flask import Blueprint, request, session, redirect, url_for, jsonify
 from requests_oauthlib import OAuth2Session
 from hashlib import sha256
 import os
@@ -22,5 +22,6 @@ def get_user(snowflake):
         service_id=2
         ).first()
     if known_user:
-        return f"discord_snowflake:{snowflake} github_user_id:{known_user.service_user_id}"
+        result = {"discordSnowflake":snowflake, "githubUserId":known_user.service_user_id}
+        return jsonify(result)
     return {"Error":f"Snowflake not found: {snowflake}"}
