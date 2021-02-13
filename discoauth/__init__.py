@@ -22,7 +22,9 @@ def create_app():
     app.config.from_pyfile('config.py')
     app.secret_key = bytes(os.getenv('SB_FLASK_SECRET_KEY'), 'utf-8').decode('unicode_escape')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SB_DATABASE_URL']
+#    app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SB_DATABASE_URL']
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///silobusters-dev.db'
+
 
     db.init_app(app)
     migrate = Migrate(app, db)
@@ -31,6 +33,8 @@ def create_app():
     app.register_blueprint(bp_discord_oauth, url_prefix='/auth')
     from discoauth.oauth.github_oauth import bp_github_oauth
     app.register_blueprint(bp_github_oauth, url_prefix='/auth')
+    from discoauth.integration.api import bp_discoauth_api
+    app.register_blueprint(bp_discoauth_api, url_prefix='/api')
 
     return app
 
@@ -42,6 +46,7 @@ app.app_context().push()
 
 @app.before_first_request
 def populate_static_tables():
+    print(f"database url: {app.config['SQLALCHEMY_DATABASE_URI']}")
     # try:
     #     print("populating static tables: guild")
     #     AffiliatedGuild.query.all()
