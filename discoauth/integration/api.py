@@ -30,12 +30,13 @@ def get_user(snowflake):
         return jsonify({"error":"unauthorized"}), 403
 
 #    known_user = UserOauth.query.filter_by(discord_user_id=str(snowflake)).first()
-    known_user = UserOAuth.query.filter_by(discord_user_id=str(snowflake)).all()
-    if known_user:
+    known_user_oauth = UserOAuth.query.filter_by(discord_user_id=str(snowflake)).all()
+    if known_user_oauth:
 #        result = {"discordSnowflake":snowflake, "githubUserId":known_user.service_user_id}
+        known_user = User.query.filter_by(discord_user_id=str(snowflake)).first()
         result = {}
         result["discordSnowflake"] = snowflake
-        for i in known_user:
+        for i in known_user_oauth:
             result[f"{SupportedService.query.filter_by(service_id=i.service_id).first().service_name.lower()}UserId"] = i.service_user_id
         result["userStatus"] = known_user.sb_status_id
         return jsonify(result)
