@@ -37,5 +37,6 @@ def get_user(snowflake):
         result["discordSnowflake"] = snowflake
         for i in known_user:
             result[f"{SupportedService.query.filter_by(service_id=i.service_id).first().service_name.lower()}UserId"] = i.service_user_id
+        result["userStatus"] = known_user.sb_status_id
         return jsonify(result)
     return jsonify({"discordSnowflake":snowflake, "githubUserId":None}), 404
