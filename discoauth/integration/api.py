@@ -24,4 +24,4 @@ def get_user(snowflake):
     if known_user:
         result = {"discordSnowflake":snowflake, "githubUserId":known_user.service_user_id}
         return jsonify(result)
-    return {"Error":f"Snowflake not found: {snowflake}"}
+    return jsonify({"discordSnowflake":snowflake, "githubUserId":None}), 404
