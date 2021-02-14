@@ -102,7 +102,7 @@ def join_affiliated_guild(id, guild, token):
 @bp_discord_oauth.route('/discord')
 def authorize_discord():
     join = request.args.get('guid', default=None, type=str)
-    link = request.args.get('link', default=None, type=str)            
+    link = request.args.get('link', default=None, type=str)
     if join:
         target_guild = AffiliatedGuild.query.filter_by(guild_id=join).first()
         if not target_guild:

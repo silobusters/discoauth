@@ -120,13 +120,17 @@ def authorize_github(): # TODO devise a way to enumerate and encode github scope
     sb_scope = sb_fields['service_scope']
     github = make_github_session(scope=sb_scope, state=sb_token_hash)
     authorization_url, state = github.authorization_url(GITHUB_AUTHORIZATION_BASE_URL)
+    print(f"GitHub Session State: {state}")
     return redirect(authorization_url)
 
 @bp_github_oauth.route('/callback_github')
 def callback_github():
     if request.values.get('error'):
         return request.values['error']
-    github = make_github_session(state=session.get('oauth2_state'))
+    print(f"GitHub Callback Session State: {session.get('oauth2_state')}") # oh no, this isn't the same value
+#    github = make_github_session(state=session.get('oauth2_state'))
+    github = make_github_session(state=request.values.get('state'))
+    print(f"New GitHub Session State: {session.get('oauth2_state')}")
     token = github.fetch_token(
         GITHUB_TOKEN_URL,
         client_secret=GITHUB_OAUTH2_CLIENT_SECRET,
