@@ -132,3 +132,4 @@ dmypy.json
 # migration stuff
 migrations/alembic.ini
 discoauth/affiliated_guilds.json
+discoauth/silobusters-dev.db
